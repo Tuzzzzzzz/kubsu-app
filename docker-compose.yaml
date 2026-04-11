@@ -1,0 +1,24 @@
+services:
+  # Сервис с вашим приложением (использует образ, собранный из Dockerfile)
+  app:
+    image: ${CI_REGISTRY_IMAGE:-user-app}:${CI_COMMIT_SHA:-latest}
+    # ВАЖНО: Не пересобираем, а используем уже готовый образ
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/app_db
+      - PORT=8000
+
+  # База данных для тестов
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: app_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
