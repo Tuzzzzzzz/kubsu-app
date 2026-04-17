@@ -1,0 +1,42 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  REGISTRY_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+
+test:
+  stage: test
+  image: pdmproject/pdm:latest
+  script:
+    - pdm install --dev
+    - pdm run pytest tests/
+  cache:
+    paths:
+      - .venv/
+  tags:
+    - local
+
+build:
+  stage: build
+  tags:
+    - local
+  script:
+    - podman login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - podman build -t $REGISTRY_IMAGE .
+    - podman push $REGISTRY_IMAGE
+  needs: ["test"]
+
+deploy:
+  stage: deploy
+  tags:
+    - local
+  script:
+    - podman pull $REGISTRY_IMAGE
+    - podman stop fastapi-app || true
+    - podman rm fastapi-app || true
+    - podman run -d --name fastapi-app -p 127.0.0.1:8000:8000 $REGISTRY_IMAGE
+  needs: ["build"]
+  only:
+    - main
