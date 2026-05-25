@@ -10,6 +10,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kubsu
+          POSTGRES_PASSWORD: kubsu
+          POSTGRES_DB: kubsu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,15 +34,23 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install PDM from local script
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Install PDM
         run: |
           python3 install-pdm.py
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install dependencies with test group
+      - name: Install dependencies
         run: pdm install -G test
+
+      - name: Verify database connection
+        run: pg_isready -h localhost -p 5432 -U kubsu -d kubsu
+        env:
+          PGPASSWORD: kubsu
 
       - name: Run tests
         run: pdm run pytest tests/ -v
         env:
-          PYTHONPATH: .
+          DATABASE_URL: postgresql+asyncpg://kubsu:kubsu@localhost:5432/kubsu
