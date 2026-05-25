@@ -19,13 +19,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install PDM
-        run: |
-          curl -sSL https://pdm-project.org/install-pdm.py | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install PDM from local script
+        run: python3 install-pdm.py
 
-      - name: Install dependencies
-        run: pdm install --dev
+      - name: Add PDM to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies with test group
+        run: pdm install -G test
 
       - name: Run tests
         run: pdm run pytest tests/ -v
