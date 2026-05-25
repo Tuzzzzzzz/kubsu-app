@@ -54,3 +54,4 @@ jobs:
         run: pdm run pytest tests/ -v
         env:
           DATABASE_URL: postgresql+asyncpg://kubsu:kubsu@localhost:5432/kubsu
+          PYTHONPATH: .
