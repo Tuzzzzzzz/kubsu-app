@@ -1,4 +1,4 @@
-name: Run Tests
+name: CI/CD Pipeline
 
 on:
   push:
@@ -55,3 +55,37 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://kubsu:kubsu@localhost:5432/kubsu
           PYTHONPATH: .
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            echo "Pulling latest image..."
+            podman pull ghcr.io/${{ github.repository }}:latest
+            
+            echo "Stopping old container..."
+            podman stop my-app || true
+            podman rm my-app || true
+            
+            echo "Starting new container..."
+            podman run -d \
+              --name my-app \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              ghcr.io/${{ github.repository }}:latest
+            
+            echo "Deployment done!"
+            podman ps | grep my-app
